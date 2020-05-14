@@ -1,0 +1,12 @@
+tools/
+.vscode/
+
+# Python
+*.pyc
+__pycache__/*
+
+# Data
+/data/*
+
+# Serialized Models
+/models/*
