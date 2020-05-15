@@ -15,7 +15,7 @@ This model is 96% smaller the the FlowNet in terms of parameters.
 
 ```python
 import spynet
-import spynet.transfroms as T
+import torchvision.transfroms as T
 from PIL import Image
 
 tfms = T.Compose([
