@@ -35,7 +35,7 @@ flow = spynet.flow.flow_to_image(flow)
 Image.fromarray(flow).show()
 ```
 
-![Flying chair example](figures/example.png)
+![Flying chair example](figures/chair_example.png)
 
 
 ## Finetuning the model
