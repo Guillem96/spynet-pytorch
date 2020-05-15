@@ -44,6 +44,6 @@ TBD
 
 ## References
 
-- (SpyNet custom implementation by Simon Niklaus)[https://github.com/sniklaus/pytorch-spynet/]
-- (Original SpyNet implementation in torch lua)[https://github.com/anuragranj/spynet]
-- (FlowNet2 TF implementation by Sam Pepose)[https://github.com/sampepose/flownet2-tf]
+- [SpyNet custom implementation by Simon Niklaus](https://github.com/sniklaus/pytorch-spynet/)
+- [Original SpyNet implementation in torch lua](https://github.com/anuragranj/spynet)
+- [FlowNet2 TF implementation by Sam Pepose](https://github.com/sampepose/flownet2-tf)
