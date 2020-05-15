@@ -13,29 +13,13 @@ import spynet.transforms as OFT
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def load_pyramid(k: int, checkpoint_path: Union[str, Path]) -> torch.nn.Module:
-    checkpoint_path = Path(checkpoint_path)
-    units = []
-
-    for i in range(k):
-        unit = spynet.SpyNetUnit()
-        unit.eval()
-        unit.to(device)
-
-        chkp = torch.load(str(checkpoint_path / f'{i}.pt'), map_location=device)
-        unit.load_state_dict(chkp)
-        units.append(unit)
-    
-    return spynet.SpyNet(*units)
-
 
 @click.command()
 @click.option('--root', #required=True,
                type=click.Path(file_okay=False, exists=True))
-@click.option('--checkpoint-dir', required=True,
-               type=click.Path(file_okay=False, exists=True))
+@click.option('--checkpoint-name', required=True, type=str, default='sentinel')
 @click.option('--k', default=6, type=int)
-def inference(root: str, checkpoint_dir: str, k: int) -> None:
+def inference(root: str, checkpoint_name:str, k: int) -> None:
 
     im_size = spynet.config.GConf(k - 1).image_size
 
@@ -46,33 +30,37 @@ def inference(root: str, checkpoint_dir: str, k: int) -> None:
                       std= [.229, .225, .224])
     ])
 
-    model = load_pyramid(k, checkpoint_dir)
+    model = spynet.SpyNet.from_pretrained(checkpoint_name, map_location=device)
     model.to(device)
     model.eval()
     
-    ds = spynet.dataset.FlyingChairDataset(root, tfms)
-    frames, of = ds[random.randint(0, len(ds) - 1)]
+    ds = spynet.dataset.FlyingChairDataset(root)
+    o_frames, o_of = ds[random.randint(0, len(ds) - 1)]
+    frames, of = tfms(o_frames, o_of)
+    
     frames = [o.unsqueeze(0).to(device) for o in frames]
     
     with torch.no_grad():
-        Vk = model(frames)
+        Vk = model(frames)[0]
 
-    pred_of_im = spynet.flow.flow_to_image(
-        Vk.cpu().squeeze().permute(1, 2, 0).numpy())
+    pred_of_im = spynet.flow.flow_to_image(Vk)
+    true_of = spynet.flow.flow_to_image(of)
 
-    true_of = spynet.flow.flow_to_image(
-        of.cpu().squeeze().permute(1, 2, 0).numpy())
+    plt.figure(figsize=(10, 4))
 
-    plt.figure()
-
-    plt.subplot(121)
+    plt.subplot(131)
     plt.title('Predictions')
     plt.imshow(pred_of_im)
     plt.axis('off')
 
-    plt.subplot(122)
-    plt.title('Ground Truth')
-    plt.imshow(true_of)
+    plt.subplot(132)
+    plt.title('Ground Truth Frame 1')
+    plt.imshow(o_frames[0])
+    plt.axis('off')
+
+    plt.subplot(133)
+    plt.title('Ground Truth Frame 2')
+    plt.imshow(o_frames[1])
     plt.axis('off')
 
     plt.show()

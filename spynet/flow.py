@@ -1,3 +1,5 @@
+from typing import Union
+import torch
 import numpy as np
 
 UNKNOWN_FLOW_THRESH = 1e7
@@ -5,7 +7,7 @@ SMALLFLOW = 0.0
 LARGEFLOW = 1e8
 
 
-def flow_to_image(flow: np.ndarray) -> np.ndarray:
+def flow_to_image(flow: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
     """
     Convert flow into middlebury color code image
 
@@ -18,6 +20,9 @@ def flow_to_image(flow: np.ndarray) -> np.ndarray:
     -------
     np.ndarray optical flow image in middlebury color
     """
+    if torch.is_tensor(flow):
+        flow = flow.cpu().detach().permute(1, 2, 0).numpy()
+
     u = flow[:, :, 0]
     v = flow[:, :, 1]
 

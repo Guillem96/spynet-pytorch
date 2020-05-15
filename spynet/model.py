@@ -1,4 +1,6 @@
-from typing import Sequence, Tuple
+import requests
+from pathlib import Path
+from typing import Sequence, Tuple, Type
 
 import torch
 import torch.nn as nn
@@ -48,7 +50,7 @@ class SpyNetUnit(nn.Module):
         if upsample_optical_flow:
             optical_flow = F.interpolate(
                 optical_flow, scale_factor=2, align_corners=True, 
-                mode='bilinear')
+                mode='bilinear') * 2
 
         s_frame = spynet.nn.warp(s_frame, optical_flow, s_frame.device)
         s_frame = torch.cat([s_frame, optical_flow], dim=1)
@@ -59,10 +61,22 @@ class SpyNetUnit(nn.Module):
 
 class SpyNet(nn.Module):
 
-    def __init__(self, *units: SpyNetUnit):
+    def __init__(self, units: Sequence[SpyNetUnit] = None, k: int = None):
         super(SpyNet, self).__init__()
-        self.units = nn.ModuleList(units)
-    
+        
+        if units is not None and k is not None:
+            assert len(units) == k
+
+        if units is None and k is None:
+            raise ValueError('At least one argument (units or k) must be' 
+                             'specified')
+
+        if units is not None:
+            self.units = nn.ModuleList(units)
+        else:
+            units = [SpyNetUnit() for _ in range(k)]
+            self.units = nn.ModuleList(units)
+
     def forward(self, 
                 frames: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """
@@ -84,9 +98,45 @@ class SpyNet(nn.Module):
             if Vk_1 is not None: # Upsample the previous optical flow
                 Vk_1 = F.interpolate(
                     Vk_1, scale_factor=2, align_corners=True, 
-                    mode='bilinear')
+                    mode='bilinear') * 2.
 
             Vk = G((x1, x2), Vk_1, upsample_optical_flow=False)
             Vk_1 = Vk + Vk_1 if Vk_1 is not None else Vk
         
         return Vk_1
+
+    @classmethod
+    def from_pretrained(cls: Type['SpyNet'], 
+                        name: str, 
+                        map_location: torch.device = torch.device('cpu'),
+                        dst_file: str = None) -> 'SpyNet':
+        bucket = 'ml-generic-purpose-pt-models'
+        base_url = f'https://storage.googleapis.com/{bucket}/spynet'
+
+        names_url = {
+            'sentinel': f'{base_url}/final-sentinel.pt',
+            'kitti': f'{base_url}/kitti.pt',
+            'flying-chair': f'{base_url}/final-chairs.pt',
+        }
+
+        if name not in names_url:
+            available_names = ','.join(f'"{o}"' for o in names_url)
+            raise ValueError(f'The name {name} is not available. '
+                             f'The available models are: {available_names}')
+
+        if dst_file is None:
+            dst_file = Path.home() / '.spynet' / (name + '.pt')
+            dst_file.parent.mkdir(exist_ok=True)
+        
+        if not dst_file.exists():
+            res = requests.get(names_url[name])
+            with open(str(dst_file), 'wb') as f:
+                f.write(res.content)
+        
+        checkpoint = torch.load(str(dst_file), map_location=map_location)
+        k = len(checkpoint) // 10
+
+        instance = cls(k=k)
+        instance.load_state_dict(checkpoint)
+        instance.to(map_location)
+        return instance
