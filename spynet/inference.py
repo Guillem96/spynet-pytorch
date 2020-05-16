@@ -18,13 +18,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 @click.option('--root', #required=True,
                type=click.Path(file_okay=False, exists=True))
 @click.option('--checkpoint-name', required=True, type=str, default='sentinel')
-@click.option('--k', default=6, type=int)
-def inference(root: str, checkpoint_name:str, k: int) -> None:
-
-    im_size = spynet.config.GConf(k - 1).image_size
+def inference(root: str, checkpoint_name:str) -> None:
 
     tfms = OFT.Compose([
-        OFT.Resize(*im_size),
         OFT.ToTensor(),
         OFT.Normalize(mean=[.485, .406, .456], 
                       std= [.229, .225, .224])

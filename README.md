@@ -40,7 +40,26 @@ Image.fromarray(flow).show()
 
 ## Finetuning the model
 
-TBD
+To finetune the default `sentinel` pretrained model run:
+
+```bash
+$ python -m spynet.train \
+    --root data/ \
+    --checkpoint-dir models/finetuned-sentinel \
+    --finetune-name sentinel \
+    --batch-size 32 \
+    --epochs 10
+```
+
+Then to load the finetuned model do:
+
+```python
+import spynet
+
+model = spynet.SpyNet.from_pretrained('models/finetuned-sentinel/final.pt')
+model.eval()
+```
+
 
 ## References
 

@@ -16,19 +16,15 @@ class SpyNetUnit(nn.Module):
 
         self.module = nn.Sequential(
             nn.Conv2d(input_channels, 32, kernel_size=7, padding=3, stride=1),
-            # nn.BatchNorm2d(32),
             nn.ReLU(inplace=False),
 
             nn.Conv2d(32, 64, kernel_size=7, padding=3, stride=1),
-            # nn.BatchNorm2d(64),
             nn.ReLU(inplace=False),
 
             nn.Conv2d(64, 32, kernel_size=7, padding=3, stride=1),
-            # nn.BatchNorm2d(32),
             nn.ReLU(inplace=False),
 
             nn.Conv2d(32, 16, kernel_size=7, padding=3, stride=1),
-            # nn.BatchNorm2d(16),
             nn.ReLU(inplace=False),
 
             nn.Conv2d(16, 2, kernel_size=7, padding=3, stride=1))
@@ -78,7 +74,8 @@ class SpyNet(nn.Module):
             self.units = nn.ModuleList(units)
 
     def forward(self, 
-                frames: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+                frames: Tuple[torch.Tensor, torch.Tensor],
+                limit_k: int = -1) -> torch.Tensor:
         """
         Parameters
         ----------
@@ -86,6 +83,10 @@ class SpyNet(nn.Module):
             Highest resolution frames. Each tuple element has shape
             [BATCH, 3, HEIGHT, WIDTH]
         """
+        if limit_k == -1:
+            units = self.units
+        else:
+            units = self.units[:limit_k]
         Vk_1 = None
 
         for k, G in enumerate(self.units):
@@ -110,6 +111,17 @@ class SpyNet(nn.Module):
                         name: str, 
                         map_location: torch.device = torch.device('cpu'),
                         dst_file: str = None) -> 'SpyNet':
+        
+        def get_model(path: str) -> 'SpyNet':
+            checkpoint = torch.load(path, 
+                                    map_location=map_location)
+            k = len(checkpoint) // 10
+
+            instance = cls(k=k)
+            instance.load_state_dict(checkpoint, strict=False)
+            instance.to(map_location)
+            return instance
+
         bucket = 'ml-generic-purpose-pt-models'
         base_url = f'https://storage.googleapis.com/{bucket}/spynet'
 
@@ -119,7 +131,9 @@ class SpyNet(nn.Module):
             'flying-chair': f'{base_url}/final-chairs.pt',
         }
 
-        if name not in names_url:
+        if name not in names_url and Path(name).exists():
+            return get_model(str(name))
+        elif name not in names_url:
             available_names = ','.join(f'"{o}"' for o in names_url)
             raise ValueError(f'The name {name} is not available. '
                              f'The available models are: {available_names}')
@@ -133,10 +147,4 @@ class SpyNet(nn.Module):
             with open(str(dst_file), 'wb') as f:
                 f.write(res.content)
         
-        checkpoint = torch.load(str(dst_file), map_location=map_location)
-        k = len(checkpoint) // 10
-
-        instance = cls(k=k)
-        instance.load_state_dict(checkpoint)
-        instance.to(map_location)
-        return instance
+        return get_model(str(dst_file))
