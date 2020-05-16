@@ -15,7 +15,7 @@ This model is 96% smaller the the FlowNet in terms of parameters.
 
 ```python
 import spynet
-import spynet.transfroms as T
+import torchvision.transfroms as T
 from PIL import Image
 
 tfms = T.Compose([
@@ -35,7 +35,7 @@ flow = spynet.flow.flow_to_image(flow)
 Image.fromarray(flow).show()
 ```
 
-![Flying chair example](figures/example.png)
+![Flying chair example](figures/chair_example.png)
 
 
 ## Finetuning the model
